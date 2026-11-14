@@ -611,7 +611,9 @@ footer p{margin:0 0 6px}
     $("#forget").hidden = !has;
 
     var lifeAge = age + e, dd = new Date(death);
+    var sexLabel = { m: "男性", f: "女性", a: "性別の指定なし（男女平均）" }[sex];
     $("#est").innerHTML =
+      "生年月日 <strong>" + p[0] + "年" + p[1] + "月" + p[2] + "日</strong>（" + sexLabel + "）<br>" +
       "現在 <strong>" + age.toFixed(1) + "歳</strong>　平均余命 <strong>あと " + e.toFixed(2) + " 年</strong><br>" +
       "統計上の目安：<strong>約 " + lifeAge.toFixed(1) + " 歳</strong>（" + dd.getFullYear() + "年" + (dd.getMonth() + 1) + "月ごろ）";
 
