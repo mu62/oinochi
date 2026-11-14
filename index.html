@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>命の砂時計</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --blue:#005bac; --blue-d:#00467f; --blue-l:#e8f1fa; --blue-m:#3d8ee0;
+  --ink:#1b2430; --mute:#667587; --line:#dbe3ec; --bg:#f4f7fb; --white:#fff;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{
+  min-height:100vh; color:var(--ink);
+  font-family:"Noto Sans JP","Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",Meiryo,sans-serif;
+  background:linear-gradient(180deg,#fff 0,var(--bg) 560px,var(--bg) 100%) fixed;
+  border-top:4px solid var(--blue);
+  -webkit-font-smoothing:antialiased;
+}
+main{max-width:640px;margin:0 auto;padding:40px 20px 56px}
+header{text-align:center;margin-bottom:28px}
+.eyebrow{margin:0 0 10px;font-family:Inter,sans-serif;font-weight:600;font-size:12px;letter-spacing:.28em;color:var(--blue)}
+h1{margin:0;font-weight:700;font-size:clamp(30px,8.5vw,44px);letter-spacing:.08em;color:var(--ink)}
+h1::after{content:"";display:block;width:44px;height:4px;border-radius:2px;background:var(--blue);margin:16px auto 0}
+body.running header{margin-bottom:4px}
+body.running .lead{display:none}
+.lead{text-wrap:balance;margin:18px auto 0;max-width:30em;line-height:1.9;color:var(--mute);font-size:14.5px}
+
+/* form */
+.card{border:1px solid var(--line);background:var(--white);border-radius:12px;padding:24px 20px;box-shadow:0 6px 24px rgba(0,50,100,.06)}
+label.f,.legend{display:block;font-size:13px;font-weight:500;color:var(--ink);margin-bottom:8px}
+input[type=date]{
+  width:100%;font:inherit;font-size:18px;color:var(--ink);color-scheme:light;
+  background:var(--white);border:1px solid #b9c7d8;border-radius:8px;padding:13px 14px;
+}
+input[type=date]:focus{outline:3px solid rgba(0,91,172,.28);border-color:var(--blue)}
+.seg{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{flex:1 1 0;min-width:96px;text-align:center;padding:11px 8px;border:1px solid #b9c7d8;border-radius:8px;
+  font-size:15px;cursor:pointer;background:var(--white);color:var(--ink);transition:.2s}
+.seg input:checked+label{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:500}
+.seg input:focus-visible+label{outline:3px solid rgba(0,91,172,.35);outline-offset:2px}
+.hint{font-size:12px;color:var(--mute);line-height:1.7;margin:-10px 0 18px}
+.btn{
+  width:100%;border:0;border-radius:8px;padding:15px 20px;font:inherit;font-size:16px;font-weight:700;letter-spacing:.12em;
+  color:#fff;background:var(--blue);cursor:pointer;transition:background .15s, transform .1s;
+}
+.btn:hover{background:var(--blue-d)}
+.btn:active{transform:scale(.99)}
+.err{color:#c8261b;font-size:14px;min-height:1.4em;margin:12px 0 0;text-align:center}
+.remember{display:flex;align-items:flex-start;gap:10px;font-size:13px;line-height:1.6;color:var(--ink);margin:16px 0 0;cursor:pointer}
+.remember input{width:18px;height:18px;margin:2px 0 0;accent-color:var(--blue);flex:none}
+.forget{display:block;margin:14px auto 0;background:none;border:0;color:var(--mute);font:inherit;font-size:12px;text-decoration:underline;cursor:pointer;padding:6px}
+.forget:hover{color:var(--blue)}
+.privacy{font-size:12px;color:var(--mute);text-align:center;margin:14px 0 0;line-height:1.7}
+
+/* stage */
+#stage.on{animation:rise 1.2s ease both}
+@keyframes rise{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}
+.hg-wrap{position:relative;margin:6px auto 0;height:min(76vh,820px);aspect-ratio:400/720;max-width:94vw}
+.layer{position:absolute;inset:0;width:100%;height:100%;display:block;overflow:visible}
+
+.meter{margin:10px 0 22px;background:var(--white);border:1px solid var(--line);border-radius:12px;padding:16px 16px 14px}
+.bar{display:flex;height:10px;border-radius:999px;overflow:hidden;background:var(--blue-l)}
+.bar .used{background:#a9bdd3}
+.bar .left{flex:1;background:linear-gradient(90deg,var(--blue-m),var(--blue))}
+.mlabels{display:flex;justify-content:space-between;gap:12px;margin-top:12px;font-size:12.5px;color:var(--mute)}
+.mlabels b{display:block;margin-top:2px;font-family:Inter,sans-serif;font-size:21px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.mlabels div:last-child{text-align:right}
+.mlabels div:last-child b{color:var(--blue)}
+
+.est{text-align:center;color:var(--mute);font-size:14px;line-height:1.9;margin:0 0 22px}
+.est strong{color:var(--ink);font-weight:700}
+
+.cd-title{text-align:center;font-size:12px;font-weight:700;color:var(--blue);letter-spacing:.3em;margin:0 0 10px}
+.cd{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;text-align:center}
+.u{border:1px solid var(--line);border-radius:10px;padding:12px 2px 9px;background:var(--white);box-shadow:0 2px 10px rgba(0,50,100,.05)}
+.u .n{display:block;font-family:Inter,sans-serif;font-weight:700;font-size:clamp(24px,8vw,42px);line-height:1.1;
+  font-variant-numeric:tabular-nums;color:var(--blue)}
+.u .l{display:block;margin-top:6px;font-size:12px;color:var(--mute)}
+.secs{text-align:center;margin:14px 0 0;font-size:13px;color:var(--mute)}
+.secs b{font-family:Inter,sans-serif;font-size:18px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:22px 0 0}
+.fact{border:1px solid var(--line);border-left:4px solid var(--blue);border-radius:8px;padding:12px 14px;background:var(--white)}
+.fact span{display:block;font-size:12px;color:var(--mute)}
+.fact b{display:block;margin-top:4px;font-family:Inter,sans-serif;font-size:24px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--ink)}
+
+.closing{text-align:center;margin:30px 0 18px;line-height:2;color:var(--ink);font-size:14.5px}
+.link{display:block;margin:0 auto;background:var(--white);border:1px solid var(--blue);color:var(--blue);font:inherit;font-size:14px;font-weight:500;
+  padding:11px 24px;border-radius:8px;cursor:pointer;letter-spacing:.06em}
+.link:hover{background:var(--blue-l)}
+
+footer{margin-top:38px;border-top:1px solid var(--line);padding-top:18px;font-size:12px;line-height:1.9;color:var(--mute)}
+footer p{margin:0 0 6px}
+
+@media (prefers-reduced-motion:reduce){
+  #stage.on{animation:none}
+}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="eyebrow">HOURGLASS OF LIFE</p>
+    <h1>命の砂時計</h1>
+    <p class="lead">生年月日を入れると、日本の統計（簡易生命表）をもとに、これまでに落ちた砂と、これから残された砂を見せます。</p>
+  </header>
+
+  <form id="form" class="card" novalidate>
+    <label class="f" for="birth">生年月日</label>
+    <input id="birth" type="date" min="1900-01-01" required>
+    <div style="height:20px"></div>
+    <div class="legend" id="sexLegend">性別（生命表は男女別に作られています）</div>
+    <div class="seg" role="radiogroup" aria-labelledby="sexLegend">
+      <input type="radio" name="sex" id="sexM" value="m"><label for="sexM">男性</label>
+      <input type="radio" name="sex" id="sexF" value="f"><label for="sexF">女性</label>
+      <input type="radio" name="sex" id="sexA" value="a" checked><label for="sexA">指定しない</label>
+    </div>
+    <p class="hint">「指定しない」は、男女の平均余命の単純平均で計算します。</p>
+    <button class="btn" type="submit">砂時計を見る</button>
+    <p class="err" id="err" role="alert"></p>
+    <label class="remember"><input type="checkbox" id="remember" checked> <span>次回から入力しなくてよいように、この端末に保存する</span></label>
+    <p class="privacy">生年月日はサーバーには送信されません。保存する場合も、このブラウザ内（Cookie）にだけ残ります。</p>
+  </form>
+
+  <section id="stage" hidden aria-live="off">
+    <div class="hg-wrap" id="hgWrap">
+      <svg class="layer" viewBox="0 0 400 720" aria-hidden="true">
+        <defs>
+          <filter id="woodV" x="0" y="0" width="1" height="1">
+            <feTurbulence type="fractalNoise" baseFrequency="0.5 0.010" numOctaves="3" seed="4"/>
+            <feColorMatrix type="matrix" values="0.55 0 0 0 0.24  0.36 0 0 0 0.12  0.2 0 0 0 0.04  0 0 0 0 1"/>
+          </filter>
+          <filter id="blurSh" x="-20%" y="-300%" width="140%" height="700%"><feGaussianBlur stdDeviation="6"/></filter>
+          <linearGradient id="postShade" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#000" stop-opacity=".55"/>
+            <stop offset=".3" stop-color="#ffe6b4" stop-opacity=".30"/>
+            <stop offset=".62" stop-color="#000" stop-opacity=".10"/>
+            <stop offset="1" stop-color="#000" stop-opacity=".62"/>
+          </linearGradient>
+          <clipPath id="postsClip">
+            <rect x="64" y="60" width="12" height="580" rx="3"/><rect x="324" y="60" width="12" height="580" rx="3"/>
+            <rect x="60" y="104" width="20" height="14" rx="6"/><rect x="320" y="104" width="20" height="14" rx="6"/>
+            <rect x="60" y="343" width="20" height="14" rx="6"/><rect x="320" y="343" width="20" height="14" rx="6"/>
+            <rect x="60" y="582" width="20" height="14" rx="6"/><rect x="320" y="582" width="20" height="14" rx="6"/>
+          </clipPath>
+        </defs>
+        <ellipse cx="200" cy="694" rx="168" ry="13" fill="#000" fill-opacity=".30" filter="url(#blurSh)"/>
+        <ellipse cx="200" cy="688" rx="140" ry="6" fill="#000" fill-opacity=".38" filter="url(#blurSh)"/>
+        <g clip-path="url(#postsClip)">
+          <rect x="55" y="55" width="290" height="590" filter="url(#woodV)"/>
+          <rect x="60" y="55" width="20" height="590" fill="url(#postShade)"/>
+          <rect x="320" y="55" width="20" height="590" fill="url(#postShade)"/>
+        </g>
+      </svg>
+      <canvas class="layer" id="sandCv"></canvas>
+      <svg class="layer" id="hg" viewBox="0 0 400 720" role="img" aria-label="砂時計。上の砂が残りの時間、下の砂がこれまで過ごした時間を表します。">
+        <defs>
+          <filter id="woodH" x="0" y="0" width="1" height="1">
+            <feTurbulence type="fractalNoise" baseFrequency="0.010 0.33" numOctaves="3" seed="9"/>
+            <feColorMatrix type="matrix" values="0.55 0 0 0 0.25  0.36 0 0 0 0.125  0.2 0 0 0 0.045  0 0 0 0 1"/>
+          </filter>
+          <filter id="hl" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation=".8"/></filter>
+          <clipPath id="gClip"><path d="M125,64 L275,64 C292,64 300,100 300,150 C300,240 218,300 208,350 C218,400 300,460 300,550 C300,600 292,636 275,636 L125,636 C108,636 100,600 100,550 C100,460 182,400 192,350 C182,300 100,240 100,150 C100,100 108,64 125,64 Z"/></clipPath>
+          <clipPath id="capT1"><rect x="50" y="30" width="300" height="30" rx="6"/></clipPath>
+          <clipPath id="capT2"><rect x="58" y="19" width="284" height="13" rx="6"/></clipPath>
+          <clipPath id="capB1"><rect x="50" y="640" width="300" height="30" rx="6"/></clipPath>
+          <clipPath id="capB2"><rect x="58" y="668" width="284" height="13" rx="6"/></clipPath>
+          <linearGradient id="capShade" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#ffe9c0" stop-opacity=".42"/>
+            <stop offset=".22" stop-color="#ffe9c0" stop-opacity=".06"/>
+            <stop offset=".62" stop-color="#000" stop-opacity=".08"/>
+            <stop offset="1" stop-color="#000" stop-opacity=".55"/>
+          </linearGradient>
+          <linearGradient id="brass" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#f7e5a6"/><stop offset=".45" stop-color="#b98a2e"/><stop offset=".55" stop-color="#7a5416"/><stop offset="1" stop-color="#dcba68"/>
+          </linearGradient>
+          <linearGradient id="sheen" gradientUnits="userSpaceOnUse" x1="100" y1="0" x2="300" y2="0">
+            <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+            <stop offset=".09" stop-color="#fff" stop-opacity=".34"/>
+            <stop offset=".17" stop-color="#fff" stop-opacity=".05"/>
+            <stop offset=".55" stop-color="#fff" stop-opacity="0"/>
+            <stop offset=".86" stop-color="#fff" stop-opacity=".07"/>
+            <stop offset=".93" stop-color="#fff" stop-opacity=".26"/>
+            <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+          </linearGradient>
+          <linearGradient id="aoT" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".34"/><stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>
+          <linearGradient id="aoB" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".34"/><stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>
+        </defs>
+
+        <!-- glass -->
+        <path d="M125,64 L275,64 C292,64 300,100 300,150 C300,240 218,300 208,350 C218,400 300,460 300,550 C300,600 292,636 275,636 L125,636 C108,636 100,600 100,550 C100,460 182,400 192,350 C182,300 100,240 100,150 C100,100 108,64 125,64 Z" fill="#a9c9c4" fill-opacity=".10"/>
+        <g clip-path="url(#gClip)">
+          <rect x="90" y="60" width="220" height="580" fill="url(#sheen)"/>
+          <path d="M125,64 L275,64 C292,64 300,100 300,150 C300,240 218,300 208,350 C218,400 300,460 300,550 C300,600 292,636 275,636 L125,636 C108,636 100,600 100,550 C100,460 182,400 192,350 C182,300 100,240 100,150 C100,100 108,64 125,64 Z" fill="none" stroke="#10302c" stroke-opacity=".30" stroke-width="14"/>
+          <path d="M125,64 L275,64 C292,64 300,100 300,150 C300,240 218,300 208,350 C218,400 300,460 300,550 C300,600 292,636 275,636 L125,636 C108,636 100,600 100,550 C100,460 182,400 192,350 C182,300 100,240 100,150 C100,100 108,64 125,64 Z" fill="none" stroke="#fff" stroke-opacity=".38" stroke-width="3.2"/>
+          <rect x="90" y="64" width="220" height="48" fill="url(#aoT)"/>
+          <rect x="90" y="588" width="220" height="48" fill="url(#aoB)"/>
+        </g>
+        <path d="M125,64 L275,64 C292,64 300,100 300,150 C300,240 218,300 208,350 C218,400 300,460 300,550 C300,600 292,636 275,636 L125,636 C108,636 100,600 100,550 C100,460 182,400 192,350 C182,300 100,240 100,150 C100,100 108,64 125,64 Z" fill="none" stroke="#1d4a45" stroke-opacity=".55" stroke-width="1.4"/>
+        <g fill="none" stroke="#fff" stroke-linecap="round" filter="url(#hl)">
+          <path d="M113,100 C108,118 108,136 110,156 C112,232 172,292 191,330" stroke-opacity=".78" stroke-width="5"/>
+          <path d="M113,104 C109,122 109,140 110,162" stroke-opacity=".95" stroke-width="2.6"/>
+          <path d="M290,112 C293,132 293,152 291,176" stroke-opacity=".55" stroke-width="3"/>
+          <path d="M288,206 C278,236 258,264 238,284" stroke-opacity=".30" stroke-width="3"/>
+          <path d="M113,620 C108,602 108,584 110,564 C112,488 172,428 191,390" stroke-opacity=".55" stroke-width="5"/>
+          <path d="M290,608 C293,588 293,568 291,544" stroke-opacity=".42" stroke-width="3"/>
+          <path d="M196,308 C198,324 199,336 200,346" stroke-opacity=".5" stroke-width="2"/>
+        </g>
+
+        <!-- collars -->
+        <rect x="116" y="57" width="168" height="9" rx="2.5" fill="#24160c"/>
+        <rect x="116" y="634" width="168" height="9" rx="2.5" fill="#24160c"/>
+        <rect x="116" y="57" width="168" height="2" fill="#fff" fill-opacity=".18"/>
+        <rect x="116" y="634" width="168" height="2" fill="#fff" fill-opacity=".14"/>
+
+        <!-- caps -->
+        <g clip-path="url(#capT1)"><rect x="40" y="25" width="320" height="40" filter="url(#woodH)"/><rect x="40" y="25" width="320" height="40" fill="url(#capShade)"/></g>
+        <g clip-path="url(#capT2)"><rect x="50" y="15" width="300" height="22" filter="url(#woodH)"/><rect x="50" y="15" width="300" height="22" fill="url(#capShade)"/></g>
+        <g clip-path="url(#capB1)"><rect x="40" y="635" width="320" height="40" filter="url(#woodH)"/><rect x="40" y="635" width="320" height="40" fill="url(#capShade)"/></g>
+        <g clip-path="url(#capB2)"><rect x="50" y="663" width="300" height="22" filter="url(#woodH)"/><rect x="50" y="663" width="300" height="22" fill="url(#capShade)"/></g>
+        <rect x="58" y="60" width="24" height="6" rx="2" fill="url(#brass)"/><rect x="318" y="60" width="24" height="6" rx="2" fill="url(#brass)"/>
+        <rect x="58" y="634" width="24" height="6" rx="2" fill="url(#brass)"/><rect x="318" y="634" width="24" height="6" rx="2" fill="url(#brass)"/>
+      </svg>
+    </div>
+
+    <div class="meter">
+      <div class="bar" aria-hidden="true"><div class="used" id="barUsed" style="width:50%"></div><div class="left"></div></div>
+      <div class="mlabels">
+        <div>これまでに落ちた砂<b id="pUsed">--</b></div>
+        <div>これから残る砂<b id="pLeft">--</b></div>
+      </div>
+    </div>
+
+    <p class="est" id="est"></p>
+
+    <p class="cd-title">残り時間</p>
+    <div class="cd" role="timer" aria-label="残り時間のカウントダウン">
+      <div class="u"><span class="n" id="cY">0</span><span class="l">年</span></div>
+      <div class="u"><span class="n" id="cD">0</span><span class="l">日</span></div>
+      <div class="u"><span class="n" id="cH">00</span><span class="l">時間</span></div>
+      <div class="u"><span class="n" id="cM">00</span><span class="l">分</span></div>
+      <div class="u"><span class="n" id="cS">00</span><span class="l">秒</span></div>
+    </div>
+    <p class="secs">秒に直すと <b id="totSec">0</b> 秒</p>
+
+    <div class="facts">
+      <div class="fact"><span>これまで過ごした日数</span><b id="fPast">-</b></div>
+      <div class="fact"><span>残りの日数</span><b id="fDays">-</b></div>
+      <div class="fact"><span>残りの週末</span><b id="fWk">-</b></div>
+      <div class="fact"><span>残りの誕生日</span><b id="fBd">-</b></div>
+    </div>
+
+    <p class="closing">砂は落ち続けています。<br>それでも、今日という一粒は、まだあなたの手の中にあります。</p>
+    <button class="link" id="reset" type="button">生年月日を入れ直す</button>
+    <button class="forget" id="forget" type="button" hidden>この端末に保存した生年月日を削除する</button>
+  </section>
+
+  <footer>
+    <p>出典：厚生労働省「令和7(2025)年簡易生命表」（2026年7月24日公表）の男女別・年齢別の平均余命。5歳ごとの値の間は直線で補間しています。</p>
+    <p>平均余命は「令和7年の死亡状況が今後も続くと仮定したとき、その年齢の人があと平均して何年生きるか」を表す統計値です。あなた自身の寿命を予測するものではなく、健康状態や生活によって大きく異なります。</p>
+    <p id="over" hidden>※ 105歳以上は、生命表の105歳の値で計算しています。</p>
+  </footer>
+</main>
+
+<script>
+(function(){
+  "use strict";
+  var $ = function(s){ return document.querySelector(s); };
+
+  /* 令和7(2025)年簡易生命表：年齢 -> [男, 女] の平均余命（年） */
+  var TBL = [
+    [0,81.35,87.33],[5,76.57,82.54],[10,71.60,77.56],[15,66.63,72.60],[20,61.72,67.67],
+    [25,56.85,62.77],[30,51.98,57.85],[35,47.12,52.94],[40,42.29,48.05],[45,37.52,43.20],
+    [50,32.82,38.41],[55,28.26,33.70],[60,23.86,29.07],[65,19.68,24.52],[70,15.78,20.10],
+    [75,12.24,15.88],[80,9.10,11.95],[85,6.44,8.47],[90,4.38,5.66],[95,2.90,3.58],
+    [100,1.81,2.05],[105,1.08,1.06]
+  ];
+  var MSY = 365.2425 * 86400000, MSD = 86400000;
+
+  function pick(row, sex){
+    if (sex === "m") return row[1];
+    if (sex === "f") return row[2];
+    return (row[1] + row[2]) / 2;
+  }
+  function lifeExp(age, sex){
+    var last = TBL[TBL.length - 1];
+    if (age >= last[0]) return pick(last, sex);
+    for (var i = 0; i < TBL.length - 1; i++){
+      var a = TBL[i], b = TBL[i+1];
+      if (age >= a[0] && age < b[0]){
+        var t = (age - a[0]) / (b[0] - a[0]);
+        return pick(a, sex) * (1 - t) + pick(b, sex) * t;
+      }
+    }
+    return pick(TBL[0], sex);
+  }
+
+  /* 砂時計の形状：上の球の断面（右半分）を2本のベジエで定義し、体積（半径²の積分）で砂の高さを決める */
+  var GP = "M125,64 L275,64 C292,64 300,100 300,150 C300,240 218,300 208,350 C218,400 300,460 300,550 C300,600 292,636 275,636 L125,636 C108,636 100,600 100,550 C100,460 182,400 192,350 C182,300 100,240 100,150 C100,100 108,64 125,64 Z";
+  var glassP = new Path2D(GP);
+  var SEGS = [
+    [[275,64],[292,64],[300,100],[300,150]],
+    [[300,150],[300,240],[218,300],[208,350]]
+  ];
+  var ys = [], hw = [];
+  SEGS.forEach(function(sg, si){
+    for (var i = (si ? 1 : 0); i <= 300; i++){
+      var t = i / 300, u = 1 - t;
+      ys.push(u*u*u*sg[0][1] + 3*u*u*t*sg[1][1] + 3*u*t*t*sg[2][1] + t*t*t*sg[3][1]);
+      hw.push(u*u*u*sg[0][0] + 3*u*u*t*sg[1][0] + 3*u*t*t*sg[2][0] + t*t*t*sg[3][0] - 200);
+    }
+  });
+  var N = ys.length - 1, V = new Array(N + 1);
+  V[N] = 0;
+  for (var j = N - 1; j >= 0; j--) V[j] = V[j+1] + (hw[j]*hw[j] + hw[j+1]*hw[j+1]) / 2 * (ys[j+1] - ys[j]);
+  var Vt = V[0];
+  function level(f){            // 体積比 f の砂が、くびれ(350)から積もったときの上面の y
+    f = Math.max(0, Math.min(1, f));
+    var target = f * Vt, lo = 0, hi = N;
+    while (hi - lo > 1){ var mid = (lo + hi) >> 1; if (V[mid] >= target) lo = mid; else hi = mid; }
+    var span = V[lo] - V[hi], k = span > 0 ? (V[lo] - target) / span : 0;
+    return ys[lo] + (ys[hi] - ys[lo]) * k;
+  }
+  function hwAt(y){
+    var lo = 0, hi = N;
+    while (hi - lo > 1){ var mid = (lo + hi) >> 1; if (ys[mid] <= y) lo = mid; else hi = mid; }
+    var span = ys[hi] - ys[lo], k = span > 0 ? (y - ys[lo]) / span : 0;
+    return hw[lo] + (hw[hi] - hw[lo]) * k;
+  }
+
+  /* 砂の質感テクスチャ（1回だけ生成） */
+  var tex = null;
+  function makeTex(){
+    var W = 800, H = 1440, c = document.createElement("canvas");
+    c.width = W; c.height = H;
+    var x = c.getContext("2d"), img = x.createImageData(W, H), d = img.data;
+    var gw = 41, gh = 73, grid = [];
+    for (var i = 0; i < gw * gh; i++) grid.push(Math.random());
+    for (var py = 0; py < H; py++){
+      var v = 1 - 0.10 * (py / H);
+      for (var px = 0; px < W; px++){
+        var n = Math.random();
+        var g = 0.80 + 0.36 * n;
+        if (n > 0.985) g = 1.28; else if (n < 0.025) g = 0.50;
+        var fx = px / 20, fy = py / 20, ix = fx | 0, iy = fy | 0, ax = fx - ix, ay = fy - iy;
+        var lv = (grid[iy*gw+ix]*(1-ax) + grid[iy*gw+Math.min(gw-1,ix+1)]*ax) * (1-ay) + (grid[Math.min(gh-1,iy+1)*gw+ix]*(1-ax) + grid[Math.min(gh-1,iy+1)*gw+Math.min(gw-1,ix+1)]*ax) * ay;
+        var k = (0.92 + 0.10 * lv) * g * v;
+        var o = (py * W + px) * 4;
+        d[o]   = Math.min(255, 238 * k);
+        d[o+1] = Math.min(255, 205 * k * (0.98 + 0.04 * Math.random()));
+        d[o+2] = Math.min(255, 142 * k);
+        d[o+3] = 255;
+      }
+    }
+    x.putImageData(img, 0, 0);
+    return c;
+  }
+
+  /* ---- キャンバス ---- */
+  var cv = $("#sandCv"), ctx = cv.getContext("2d");
+  var cylG = null;
+  function fitCanvas(){
+    var rc = cv.getBoundingClientRect();
+    if (!rc.width) return;
+    var dpr = Math.min(2, window.devicePixelRatio || 1);
+    cv.width = Math.round(rc.width * dpr); cv.height = Math.round(rc.height * dpr);
+  }
+  if (window.ResizeObserver) new ResizeObserver(fitCanvas).observe($("#hgWrap"));
+  window.addEventListener("resize", fitCanvas);
+
+  /* ---- 砂の形（G）---- */
+  var G = { yw:64, R:75, d:0, yb:636, Rb:75, h:0, apex:636, flow:false };
+  function setSand(c){          // c: 落ちた砂の割合 0..1
+    var r = 1 - c, k, yw = level(r), R, d = 0;
+    for (k = 0; k < 5; k++){
+      R = hwAt(yw);
+      d = Math.max(0, Math.min(0.40 * R, (350 - yw) * 0.7, 260 * (1 - r)));
+      yw = level(Math.min(1, r + R * R * d / 3 / Vt));
+    }
+    R = hwAt(yw);
+    d = Math.max(0, Math.min(0.40 * R, (350 - yw) * 0.7, 260 * (1 - r)));
+    var yp = level(1 - c), Rb, h = 0, yb;
+    for (k = 0; k < 5; k++){
+      yb = 700 - yp; Rb = hwAt(yp);
+      h = Math.max(0, Math.min(0.50 * Rb, yb - 368, 260 * c));
+      yp = level(Math.min(1, (1 - c) + Rb * Rb * h / 3 / Vt));
+    }
+    yb = 700 - yp; Rb = hwAt(yp);
+    h = Math.max(0, Math.min(0.50 * Rb, yb - 368, 260 * c));
+    G.yw = yw; G.R = R; G.d = d; G.yb = yb; G.Rb = Rb; G.h = h; G.apex = yb - h;
+    G.flow = r > 0.0005;
+  }
+  function surfY(x){
+    var dx = Math.abs(x - 200);
+    return dx < G.Rb ? G.yb - G.h * (1 - dx / G.Rb) : G.yb;
+  }
+
+  var COL = ["rgba(240,214,160,1)", "rgba(226,192,128,1)", "rgba(250,234,192,1)"];
+  var GR = 2300, RATE = 300, parts = [], acc = 0;
+
+  function drawSand(){
+    // 上の砂（すり鉢状にへこむ）
+    ctx.save();
+    ctx.clip(glassP);
+    ctx.beginPath();
+    ctx.moveTo(0, G.yw); ctx.lineTo(200 - G.R, G.yw);
+    ctx.quadraticCurveTo(200 - G.R * .5, G.yw + G.d * .58, 200, G.yw + G.d);
+    ctx.quadraticCurveTo(200 + G.R * .5, G.yw + G.d * .58, 200 + G.R, G.yw);
+    ctx.lineTo(400, G.yw); ctx.lineTo(400, 350); ctx.lineTo(0, 350); ctx.closePath();
+    ctx.save(); ctx.clip();
+    ctx.drawImage(tex, 0, 0, 400, 720);
+    ctx.fillStyle = cylG; ctx.fillRect(0, 0, 400, 720);
+    if (G.d > 1){
+      ctx.lineWidth = 9; ctx.lineJoin = "round";
+      ctx.strokeStyle = "rgba(45,25,5,.30)";
+      ctx.beginPath(); ctx.moveTo(200 - G.R, G.yw); ctx.quadraticCurveTo(200 - G.R * .5, G.yw + G.d * .58, 200, G.yw + G.d); ctx.stroke();
+      ctx.strokeStyle = "rgba(255,244,214,.30)";
+      ctx.beginPath(); ctx.moveTo(200, G.yw + G.d); ctx.quadraticCurveTo(200 + G.R * .5, G.yw + G.d * .58, 200 + G.R, G.yw); ctx.stroke();
+    } else {
+      ctx.strokeStyle = "rgba(255,244,214,.25)"; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.moveTo(0, G.yw); ctx.lineTo(400, G.yw); ctx.stroke();
+    }
+    ctx.restore();
+    ctx.restore();
+
+    // 下の砂（山になる）
+    if (G.yb < 699){
+      ctx.save();
+      ctx.clip(glassP);
+      ctx.beginPath();
+      ctx.moveTo(0, G.yb); ctx.lineTo(200 - G.Rb, G.yb);
+      ctx.quadraticCurveTo(200 - G.Rb * .5, G.yb - G.h * .47, 200, G.yb - G.h);
+      ctx.quadraticCurveTo(200 + G.Rb * .5, G.yb - G.h * .47, 200 + G.Rb, G.yb);
+      ctx.lineTo(400, G.yb); ctx.lineTo(400, 720); ctx.lineTo(0, 720); ctx.closePath();
+      ctx.save(); ctx.clip();
+      ctx.drawImage(tex, 0, 0, 400, 720);
+      ctx.fillStyle = cylG; ctx.fillRect(0, 0, 400, 720);
+      ctx.lineWidth = 9; ctx.lineJoin = "round";
+      ctx.strokeStyle = "rgba(255,244,214,.32)";
+      ctx.beginPath(); ctx.moveTo(200 - G.Rb, G.yb); ctx.quadraticCurveTo(200 - G.Rb * .5, G.yb - G.h * .47, 200, G.yb - G.h); ctx.stroke();
+      ctx.strokeStyle = "rgba(45,25,5,.32)";
+      ctx.beginPath(); ctx.moveTo(200, G.yb - G.h); ctx.quadraticCurveTo(200 + G.Rb * .5, G.yb - G.h * .47, 200 + G.Rb, G.yb); ctx.stroke();
+      ctx.restore();
+      ctx.restore();
+    }
+  }
+
+  function drawStream(dt){
+    if (!G.flow){ parts.length = 0; return; }
+    ctx.lineCap = "round";
+    if (reduce){
+      ctx.strokeStyle = COL[0]; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(200, 351); ctx.lineTo(200, G.apex); ctx.stroke();
+      return;
+    }
+    acc += dt * RATE;
+    var n = acc | 0; acc -= n;
+    for (var q = 0; q < n; q++)
+    {
+      var v0 = 70 + Math.random() * 30, fr = Math.random() * dt;
+      parts.push({k:0, x:200 + (Math.random() - .5) * 1.4, y:351 + v0 * fr + .5 * GR * fr * fr, vx:(Math.random() - .5) * 5, vy:v0 + GR * fr, s:(Math.random() * 3) | 0});
+    }
+    for (var i = parts.length - 1; i >= 0; i--){
+      var p = parts[i];
+      if (p.k === 0){
+        p.vy += GR * dt; p.y += p.vy * dt; p.x += p.vx * dt;
+        if (p.y >= G.apex){
+          if (Math.random() < .32) parts.push({k:1, x:p.x, y:G.apex, vx:(Math.random() - .5) * 110, vy:-(25 + Math.random() * 70), s:p.s});
+          parts.splice(i, 1); continue;
+        }
+        var L = Math.min(p.vy * 0.011, 9);
+        ctx.strokeStyle = COL[p.s]; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(p.x, p.y - L); ctx.lineTo(p.x, p.y); ctx.stroke();
+      } else {
+        p.vy += GR * dt * .9; p.x += p.vx * dt; p.y += p.vy * dt;
+        if (p.y >= surfY(p.x)){ parts.splice(i, 1); continue; }
+        ctx.fillStyle = COL[p.s];
+        ctx.beginPath(); ctx.arc(p.x, p.y, .9, 0, 6.2832); ctx.fill();
+      }
+    }
+  }
+
+  function drawScene(dt){
+    if (!cv.width){ fitCanvas(); if (!cv.width) return; }
+    if (!tex) tex = makeTex();
+    if (!cylG){
+      cylG = ctx.createLinearGradient(100, 0, 300, 0);
+      cylG.addColorStop(0,   "rgba(30,16,2,.46)");
+      cylG.addColorStop(.18, "rgba(30,16,2,.10)");
+      cylG.addColorStop(.42, "rgba(255,246,222,.10)");
+      cylG.addColorStop(.72, "rgba(30,16,2,.10)");
+      cylG.addColorStop(1,   "rgba(30,16,2,.46)");
+    }
+    var sc = cv.width / 400;
+    ctx.setTransform(sc, 0, 0, sc, 0, 0);
+    ctx.clearRect(0, 0, 400, 720);
+    drawSand();
+    drawStream(dt);
+  }
+
+  /* ---- 状態 ---- */
+  var birth = 0, death = 0, raf = 0, t0 = 0, lastSand = 0, lastTs = 0, sexNow = "a";
+  var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var INTRO = reduce ? 0 : 3800;
+
+  function ease(p){ return p < .5 ? 4*p*p*p : 1 - Math.pow(-2*p + 2, 3) / 2; }
+  function pad(n, w){ var s = String(n); while (s.length < w) s = "0" + s; return s; }
+  function setText(el, s){ if (el.textContent !== s) el.textContent = s; }
+  function jp(n){ return n.toLocaleString("ja-JP"); }
+
+  var el = {
+    cY: $("#cY"), cD: $("#cD"), cH: $("#cH"), cM: $("#cM"), cS: $("#cS"), tot: $("#totSec"),
+    pU: $("#pUsed"), pL: $("#pLeft"), bar: $("#barUsed"),
+    fPast: $("#fPast"), fDays: $("#fDays"), fWk: $("#fWk"), fBd: $("#fBd")
+  };
+
+  function tick(ts){
+    var now = Date.now();
+    var rem = Math.max(0, death - now);
+
+    var y = Math.floor(rem / MSY); var r = rem - y * MSY;
+    var d = Math.floor(r / MSD);   r -= d * MSD;
+    var h = Math.floor(r / 3600000); r -= h * 3600000;
+    var m = Math.floor(r / 60000);   r -= m * 60000;
+    var s = Math.floor(r / 1000);
+    setText(el.cY, String(y)); setText(el.cD, String(d));
+    setText(el.cH, pad(h,2)); setText(el.cM, pad(m,2)); setText(el.cS, pad(s,2));
+    setText(el.tot, jp(Math.floor(rem / 1000)));
+
+    var c = Math.min(1, Math.max(0, (now - birth) / (death - birth)));
+    setText(el.pU, (c * 100).toFixed(4) + "%");
+    setText(el.pL, ((1 - c) * 100).toFixed(4) + "%");
+    el.bar.style.width = (c * 100).toFixed(4) + "%";
+
+    var p = INTRO ? Math.min(1, (ts - t0) / INTRO) : 1;
+    if (p < 1 || now - lastSand > 500){ setSand(c * ease(p)); lastSand = now; }
+    var dt = Math.min(0.05, (ts - (lastTs || ts)) / 1000); lastTs = ts;
+    drawScene(dt);
+
+    var days = rem / MSD;
+    setText(el.fPast, jp(Math.floor((now - birth) / MSD)) );
+    setText(el.fDays, jp(Math.floor(days)));
+    setText(el.fWk, jp(Math.floor(days / 7)));
+    var bd = Math.floor((death - birth) / MSY) - Math.floor((now - birth) / MSY);
+    setText(el.fBd, jp(Math.max(0, bd)));
+
+    raf = requestAnimationFrame(tick);
+  }
+
+  /* ---- 入力 ---- */
+  var form = $("#form"), stage = $("#stage"), err = $("#err"), birthIn = $("#birth");
+
+  function pad2(n){ return (n < 10 ? "0" : "") + n; }
+  (function(){
+    var t = new Date();
+    birthIn.max = t.getFullYear() + "-" + pad2(t.getMonth() + 1) + "-" + pad2(t.getDate());
+  })();
+
+  /* ---- 保存（Cookie。使えない環境では localStorage） ---- */
+  var KEY = "inochi_sunadokei", KEEP_DAYS = 365;
+  function saveBirth(v, sex){
+    var val = v + "|" + sex, ok = false;
+    try {
+      document.cookie = KEY + "=" + encodeURIComponent(val) + "; max-age=" + (KEEP_DAYS * 86400) +
+        "; path=/; SameSite=Lax" + (location.protocol === "https:" ? "; Secure" : "");
+      ok = document.cookie.indexOf(KEY + "=") !== -1;
+    } catch (e) {}
+    try { localStorage.setItem(KEY, val); ok = true; } catch (e) {}
+    return ok;
+  }
+  function loadBirth(){
+    var val = null;
+    try {
+      var m = document.cookie.match(new RegExp("(?:^|; )" + KEY + "=([^;]*)"));
+      if (m) val = decodeURIComponent(m[1]);
+    } catch (e) {}
+    if (!val){ try { val = localStorage.getItem(KEY); } catch (e) {} }
+    var mm = val && val.match(/^(\d{4}-\d{2}-\d{2})\|(m|f|a)$/);
+    return mm ? { v: mm[1], sex: mm[2] } : null;
+  }
+  function clearBirth(){
+    try { document.cookie = KEY + "=; max-age=0; path=/; SameSite=Lax" + (location.protocol === "https:" ? "; Secure" : ""); } catch (e) {}
+    try { localStorage.removeItem(KEY); } catch (e) {}
+  }
+
+  function begin(v, sex, save, fromSaved){
+    err.textContent = "";
+    if (!v){ err.textContent = "生年月日を入力してください。"; return false; }
+    var p = v.split("-").map(Number);
+    if (p.length !== 3 || p.some(isNaN)){ err.textContent = "生年月日の形式が正しくありません。"; return false; }
+    var b = new Date(p[0], p[1] - 1, p[2]).getTime();
+    var now = Date.now();
+    var age = (now - b) / MSY;
+    if (!(age >= 0)){ err.textContent = "未来の日付は入力できません。"; return false; }
+    if (age > 120){ err.textContent = "生命表の範囲を超えています。生年月日をご確認ください。"; return false; }
+
+    sexNow = sex;
+    var e = lifeExp(age, sexNow);
+    birth = b; death = now + e * MSY;
+    $("#over").hidden = !(age >= 105);
+
+    if (save) saveBirth(v, sex); else if (!fromSaved) clearBirth();
+    var has = !!loadBirth();
+    $("#forget").hidden = !has;
+
+    var lifeAge = age + e, dd = new Date(death);
+    $("#est").innerHTML =
+      "現在 <strong>" + age.toFixed(1) + "歳</strong>　平均余命 <strong>あと " + e.toFixed(2) + " 年</strong><br>" +
+      "統計上の目安：<strong>約 " + lifeAge.toFixed(1) + " 歳</strong>（" + dd.getFullYear() + "年" + (dd.getMonth() + 1) + "月ごろ）";
+
+    form.hidden = true;
+    document.body.classList.add("running");
+    stage.hidden = false;
+    stage.classList.remove("on"); void stage.offsetWidth; stage.classList.add("on");
+    setSand(0);
+    cancelAnimationFrame(raf);
+    t0 = performance.now(); lastSand = 0; lastTs = 0; parts.length = 0;
+    fitCanvas();
+    raf = requestAnimationFrame(function(ts){ t0 = ts; tick(ts); });
+    window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+    return true;
+  }
+
+  form.addEventListener("submit", function(ev){
+    ev.preventDefault();
+    var sex = (document.querySelector("input[name=sex]:checked") || {value:"a"}).value;
+    begin(birthIn.value, sex, $("#remember").checked, false);
+  });
+
+  $("#forget").addEventListener("click", function(){
+    clearBirth();
+    $("#forget").hidden = true;
+  });
+
+  $("#reset").addEventListener("click", function(){
+    cancelAnimationFrame(raf);
+    stage.hidden = true; form.hidden = false;
+    document.body.classList.remove("running");
+    window.scrollTo({ top: 0, behavior: "auto" });
+    birthIn.focus();
+  });
+
+  setSand(0);
+
+  var saved = loadBirth();
+  if (saved){
+    birthIn.value = saved.v;
+    var rb = document.querySelector("input[name=sex][value=" + saved.sex + "]");
+    if (rb) rb.checked = true;
+    if (!begin(saved.v, saved.sex, true, true)) { form.hidden = false; }
+  }
+})();
+</script>
+</body>
+</html>
