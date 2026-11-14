@@ -34,6 +34,14 @@ body.running .lead{display:none}
 /* form */
 .card{border:1px solid var(--line);background:var(--white);border-radius:12px;padding:24px 20px;box-shadow:0 6px 24px rgba(0,50,100,.06)}
 label.f,.legend{display:block;font-size:13px;font-weight:500;color:var(--ink);margin-bottom:8px}
+.dob{display:flex;align-items:center;gap:6px}
+.dob span{color:var(--mute);font-size:15px;flex:none}
+.dob input{min-width:0;font:inherit;font-size:24px;text-align:center;color:var(--ink);background:var(--white);
+  border:1px solid #b9c7d8;border-radius:8px;padding:12px 2px;font-variant-numeric:tabular-nums}
+.dob input::placeholder{color:#b7c2cf}
+#by{flex:2.3}#bm,#bd{flex:1.3}
+.dob input:focus{outline:3px solid rgba(0,91,172,.28);border-color:var(--blue)}
+.dobok{min-height:1.5em;margin:8px 0 18px;font-size:13px;color:var(--blue);text-align:center}
 input[type=date]{
   width:100%;font:inherit;font-size:18px;color:var(--ink);color-scheme:light;
   background:var(--white);border:1px solid #b9c7d8;border-radius:8px;padding:13px 14px;
@@ -113,9 +121,16 @@ footer p{margin:0 0 6px}
   </header>
 
   <form id="form" class="card" novalidate>
-    <label class="f" for="birth">生年月日</label>
-    <input id="birth" type="date" min="1900-01-01" required>
-    <div style="height:20px"></div>
+    <label class="f" for="by" id="dobLabel">生年月日（数字だけ入力）</label>
+    <div class="dob" role="group" aria-labelledby="dobLabel">
+      <input id="by" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="1985" autocomplete="bday-year" aria-label="年">
+      <span>年</span>
+      <input id="bm" inputmode="numeric" pattern="[0-9]*" maxlength="2" placeholder="6" autocomplete="bday-month" aria-label="月">
+      <span>月</span>
+      <input id="bd" inputmode="numeric" pattern="[0-9]*" maxlength="2" placeholder="15" autocomplete="bday-day" aria-label="日">
+      <span>日</span>
+    </div>
+    <p class="dobok" id="dobok" aria-live="polite"></p>
     <div class="legend" id="sexLegend">性別（生命表は男女別に作られています）</div>
     <div class="seg" role="radiogroup" aria-labelledby="sexLegend">
       <input type="radio" name="sex" id="sexM" value="m"><label for="sexM">男性</label>
@@ -555,13 +570,56 @@ footer p{margin:0 0 6px}
   }
 
   /* ---- 入力 ---- */
-  var form = $("#form"), stage = $("#stage"), err = $("#err"), birthIn = $("#birth");
+  var form = $("#form"), stage = $("#stage"), err = $("#err");
+  var yIn = $("#by"), mIn = $("#bm"), dIn = $("#bd"), okMsg = $("#dobok");
 
   function pad2(n){ return (n < 10 ? "0" : "") + n; }
-  (function(){
-    var t = new Date();
-    birthIn.max = t.getFullYear() + "-" + pad2(t.getMonth() + 1) + "-" + pad2(t.getDate());
-  })();
+  function clean(el, max){
+    var v = el.value.replace(/[０-９]/g, function(c){ return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); }).replace(/\D/g, "").slice(0, max);
+    if (el.value !== v) el.value = v;
+    return v;
+  }
+  /* 入力欄 → "YYYY-MM-DD"。空なら ""、存在しない日付なら null */
+  function readBirth(){
+    var y = yIn.value, m = mIn.value, d = dIn.value;
+    if (!y && !m && !d) return "";
+    if (y.length !== 4 || !m || !d) return "";
+    var Y = +y, M = +m, D = +d, dt = new Date(Y, M - 1, D);
+    if (Y < 1900 || dt.getFullYear() !== Y || dt.getMonth() !== M - 1 || dt.getDate() !== D) return null;
+    return Y + "-" + pad2(M) + "-" + pad2(D);
+  }
+  function writeBirth(v){
+    var q = v.split("-");
+    yIn.value = q[0]; mIn.value = String(+q[1]); dIn.value = String(+q[2]);
+    preview();
+  }
+  function preview(){
+    var v = readBirth();
+    if (v){
+      var q = v.split("-").map(Number), age = Math.floor((Date.now() - new Date(q[0], q[1] - 1, q[2]).getTime()) / MSY);
+      okMsg.textContent = age >= 0 && age <= 120 ? q[0] + "年" + q[1] + "月" + q[2] + "日（満" + age + "歳）" : "";
+    } else if (v === null){
+      okMsg.textContent = ""; 
+    } else okMsg.textContent = "";
+  }
+  yIn.addEventListener("input", function(){ if (clean(yIn, 4).length === 4) mIn.focus(); preview(); });
+  mIn.addEventListener("input", function(){
+    var v = clean(mIn, 2);
+    if (v.length === 1 && +v > 1){ mIn.value = "0" + v; v = mIn.value; }
+    if (v.length === 2){ if (+v > 12) mIn.value = "12"; if (+v === 0) mIn.value = "01"; dIn.focus(); }
+    preview();
+  });
+  dIn.addEventListener("input", function(){
+    var v = clean(dIn, 2);
+    if (v.length === 1 && +v > 3){ dIn.value = "0" + v; v = dIn.value; }
+    if (v.length === 2){ if (+v > 31) dIn.value = "31"; if (+v === 0) dIn.value = "01"; dIn.blur(); }
+    preview();
+  });
+  mIn.addEventListener("keydown", function(e){ if (e.key === "Backspace" && !mIn.value) yIn.focus(); });
+  dIn.addEventListener("keydown", function(e){ if (e.key === "Backspace" && !dIn.value) mIn.focus(); });
+  [mIn, dIn].forEach(function(el){
+    el.addEventListener("blur", function(){ if (el.value.length === 1) el.value = "0" + el.value; preview(); });
+  });
 
   /* ---- 保存（Cookie。使えない環境では localStorage） ---- */
   var KEY = "inochi_sunadokei", KEEP_DAYS = 365;
@@ -611,7 +669,7 @@ footer p{margin:0 0 6px}
     $("#forget").hidden = !has;
 
     var lifeAge = age + e, dd = new Date(death);
-    var sexLabel = { m: "男性", f: "女性", a: "性別の指定なし（男女平均）" }[sex];
+    var sexLabel = { m: "男性", f: "女性", a: "性別の指定なし・男女平均" }[sex];
     $("#est").innerHTML =
       "生年月日 <strong>" + p[0] + "年" + p[1] + "月" + p[2] + "日</strong>（" + sexLabel + "）<br>" +
       "現在 <strong>" + age.toFixed(1) + "歳</strong>　平均余命 <strong>あと " + e.toFixed(2) + " 年</strong><br>" +
@@ -633,7 +691,10 @@ footer p{margin:0 0 6px}
   form.addEventListener("submit", function(ev){
     ev.preventDefault();
     var sex = (document.querySelector("input[name=sex]:checked") || {value:"a"}).value;
-    begin(birthIn.value, sex, $("#remember").checked, false);
+    var v = readBirth();
+    if (v === null){ err.textContent = "存在しない日付です。年月日をご確認ください。"; return; }
+    if (!v){ err.textContent = "生年月日を（年・月・日の順に）入力してください。"; return; }
+    begin(v, sex, $("#remember").checked, false);
   });
 
   $("#forget").addEventListener("click", function(){
@@ -646,14 +707,14 @@ footer p{margin:0 0 6px}
     stage.hidden = true; form.hidden = false;
     document.body.classList.remove("running");
     window.scrollTo({ top: 0, behavior: "auto" });
-    birthIn.focus();
+    yIn.focus();
   });
 
   setSand(0);
 
   var saved = loadBirth();
   if (saved){
-    birthIn.value = saved.v;
+    writeBirth(saved.v);
     var rb = document.querySelector("input[name=sex][value=" + saved.sex + "]");
     if (rb) rb.checked = true;
     if (!begin(saved.v, saved.sex, true, true)) { form.hidden = false; }
